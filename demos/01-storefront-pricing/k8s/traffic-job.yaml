@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: storefront-traffic
+  namespace: northwind-pricing
+  labels:
+    app: storefront-traffic
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: storefront-traffic
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-pricing
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - until wget -q -O /dev/null http://storefront-pricing:8080/health; do sleep 2; done
+      containers:
+        - name: loadgen
+          image: quay.io/bharathappali/jafra-demo:01-storefront-pricing
+          imagePullPolicy: IfNotPresent
+          args:
+            - loadgen
+            - --target
+            - http://storefront-pricing:8080
+            - --rps
+            - "120"
+            - --time-scale
+            - "1"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 384Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            allowPrivilegeEscalation: false

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: storefront-pricing
+  namespace: northwind-pricing
+  labels:
+    app: storefront-pricing
+spec:
+  selector:
+    app: storefront-pricing
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

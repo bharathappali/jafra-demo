@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storefront-pricing
+  namespace: northwind-pricing
+  labels:
+    app: storefront-pricing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: storefront-pricing
+  template:
+    metadata:
+      labels:
+        app: storefront-pricing
+        jafra.io/enabled: "true"
+        jafra.io/mode: "continuous"
+      annotations:
+        jafra.io/containers: "pricing"
+        jafra.io/profile: "medium"
+        jafra.io/chunktime: "5s"
+        jafra.io/loop: "10s"
+        jafra.io/nmt: "summary"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: pricing
+          image: quay.io/bharathappali/jafra-demo:01-storefront-pricing
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:+ExitOnOutOfMemoryError"
+            - name: JAVA_OPTS
+              value: "-Xms512m -Xmx512m -XX:+UseZGC -XX:+AlwaysPreTouch -XX:-ZProactive"
+            - name: MALLOC_ARENA_MAX
+              value: "2"
+            - name: OTEL_ENABLED
+              value: "false"
+            - name: OTEL_SERVICE_NAME
+              value: storefront-pricing
+            - name: OTEL_TRACES_EXPORTER
+              value: otlp
+            - name: OTEL_METRICS_EXPORTER
+              value: otlp
+            - name: OTEL_LOGS_EXPORTER
+              value: none
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              memory: 2Gi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10

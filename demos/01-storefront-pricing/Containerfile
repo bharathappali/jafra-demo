@@ -1,0 +1,21 @@
+ARG BUILDPLATFORM
+FROM --platform=$BUILDPLATFORM maven:3.9-eclipse-temurin-25 AS build
+WORKDIR /src
+COPY pom.xml .
+RUN mvn -B -DskipTests dependency:go-offline
+COPY src ./src
+COPY loadgen ./loadgen
+RUN mvn -B -DskipTests package
+RUN javac --release 25 -d /src/loadgen-classes loadgen/StorefrontTrafficSimulator.java
+
+FROM eclipse-temurin:25-jre
+ENV MALLOC_ARENA_MAX=2
+ENV HOME=/tmp
+ADD https://repo1.maven.org/maven2/io/opentelemetry/javaagent/opentelemetry-javaagent/2.33.1/opentelemetry-javaagent-2.33.1.jar /opt/otel/opentelemetry-javaagent.jar
+COPY container/entrypoint.sh /entrypoint.sh
+COPY --from=build /src/target/storefront-pricing.jar /opt/pricing/storefront-pricing.jar
+COPY --from=build /src/loadgen-classes/ /opt/pricing/loadgen/
+RUN chmod 755 /entrypoint.sh
+USER 1001
+WORKDIR /tmp
+ENTRYPOINT ["/entrypoint.sh"]
